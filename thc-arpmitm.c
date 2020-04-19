@@ -44,12 +44,11 @@
 #include <time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <libnet-1.0.h>
+#include <libnet.h>
 
-#define LINK_DEV	"eth0"
+//#define LINK_DEV	"eth0"
 #define MAXBUFSIZE	1024
 #define RECACHE_TIME	10
-#define int_ntoa(x)	inet_ntoa(*((struct in_addr *)&(x)))
 #define OPT_ASYM	0x01
 #define OPT_FILE	0x02
 #define OPT_REVASYM	0x04
@@ -75,13 +74,14 @@ struct _opt {
 	u_short arpop;
 	struct _ipmac trgt;
 	int verb;
-	unsigned char mymac[6];
+	uint8_t mymac[6];
 	unsigned char flags;
 	char *ldev;
   	struct libnet_link_int *link;
 	unsigned long int (*initipmac) (void *);
 	unsigned long int (*getnextipmac) (void *);
 	unsigned long int (*resetipmac) (void *);
+	libnet_t *lnctx;
 } opt;
 
 struct _avlopt {
@@ -111,9 +111,15 @@ int init_spreadset(struct _srdnfo *, u_long, u_long);
 int str2ipmac(char *, struct _ipmac *);
 void die(int, char *, ...);
 
+static char *
+int_ntoa(unsigned long ip)
+{
+	struct in_addr in;
 
-
-static unsigned char *pkt;
+	in.s_addr = ip;
+	return inet_ntoa(in);
+}
+//#define int_ntoa(x)	inet_ntoa(*((struct in_addr *)&(x)))
 
 int
 dummy()
@@ -206,7 +212,7 @@ init_vars()
 	opt.arpop = ARPOP_REPLY;
 	opt.flags = 0;
 	opt.verb = 0;
-	opt.ldev = LINK_DEV;
+	//opt.ldev = LINK_DEV;
 	opt.initipmac = (void *) init_argvlist;
 	opt.getnextipmac = (void *) getnext_argvlist;
 	opt.resetipmac = (void *) reset_argvlist;
@@ -262,7 +268,6 @@ str2ipmac(char *str, struct _ipmac *ipmac)
 void 
 usage(int code, char *string)
 {
-/*
 	fprintf(stderr, "ERROR: %s\n", string);
 	fprintf(stderr,
 "\n"
@@ -271,7 +276,7 @@ usage(int code, char *string)
 "[Tell ip1, ip2, ... ipN that targetip has <your mac> and\n"
 " tell targetip that ip1, ip2, ... ipN has <your mac>]\n\n"
 "Options:\n"
-" -i <device>	: ethernet device [default=eth0]\n"
+" -i <device>	: ethernet device [default=auto]\n"
 " -l <iprange>	: generate ip-list [73.50.0.0-73.50.31.255]\n"
 " -f <file>	: read ip's[/:mac's] from file\n"
 " -w <n ms>	: wait n ms between each packet [default=4sec]\n"
@@ -281,7 +286,7 @@ usage(int code, char *string)
 " -A		: reverse asymmetric\n"
 " -v		: verbose output [-vv..vv for more]\n"
 "\nExamples:\n"
-"Classic (1:1, gate=10.0.255.254, luser=10.0.119.119):\n"
+"Classic (1:1, gate=10.0.255.254, victim=10.0.119.119):\n"
 "arpmim -v 00:02:13:37:73:50 10.0.255.254:11:11:22:22:33:33 \\\n"
 "                            10.0.119.119:44:44:55:55:66:66\n"
 "\n"
@@ -293,7 +298,6 @@ usage(int code, char *string)
 "arpmim -A -v 00:02:13:37:73:50 255.255.255.255 10.0.0.1 10.0.0.2 10.0.0.3 \\\n"
 "                                               10.0.0.4 10.0.0.5 10.0.0.6\n"
 "[tell 10.0.0.1,..10.0.0.6 that 10.0.0.1,..10.0.0.6 has 00:02:13:37:73:50]\n");
-*/
 	exit(code);
 }
 
@@ -405,7 +409,7 @@ do_opt(int argc, char *argv[])
 void cleanup(int ret)
 {
 	fprintf(stderr, "exiting...\n");
-	libnet_destroy_packet(&pkt);
+	libnet_destroy(opt.lnctx);
 	exit(ret);
 }
 
@@ -493,22 +497,24 @@ void parse_mac(char *mac_string, unsigned char *mac)
  * return 0 on success
  */
 int
-do_arpmim(char *mymac, struct _ipmac *src, struct _ipmac *dst)
+do_arpmim(uint8_t *mymac, struct _ipmac *src, struct _ipmac *dst)
 {
-	libnet_build_ethernet(dst->mac,
-	                      mymac,
-        	              ETHERTYPE_ARP, NULL, 0, pkt);
+	libnet_ptag_t ptag = 0;
 
-	libnet_build_arp(ARPHRD_ETHER, ETHERTYPE_IP,
+	ptag = libnet_build_arp(ARPHRD_ETHER, ETHERTYPE_IP,
 	                 6, 4, opt.arpop,
 	                 mymac,
         	         (unsigned char *)&src->ip,
                 	 dst->mac,
 	                 (unsigned char *)&dst->ip, 
-	                 NULL, 0, pkt + LIBNET_ETH_H);
+	                 NULL, 0, opt.lnctx, ptag);
 
-	libnet_write_link_layer(opt.link, opt.ldev, pkt,
-	                        LIBNET_ETH_H + LIBNET_ARP_H);
+	ptag = libnet_build_ethernet(dst->mac,
+	                      mymac,
+        	              ETHERTYPE_ARP, NULL, 0, opt.lnctx, 0);
+
+	libnet_write(opt.lnctx);
+
 	return (0);
 
 }
@@ -603,9 +609,6 @@ int     get_args_env (char *args, int *n_argc, char **n_argv[])
 int 
 main(int argc, char *argv[])
 {
-  char error_buf[MAXBUFSIZE + 1];
-  int i;
-  unsigned short c = 0;
   struct _ipmac ipmac;
   char        *args;
 
@@ -623,18 +626,11 @@ main(int argc, char *argv[])
 
 	banner(); 
 
-	if(libnet_init_packet(LIBNET_ETH_H + LIBNET_ARP_H, &pkt) == -1)
-		die(EXIT_FAILURE, "libnet_init_packet failed.");
-
-	if((opt.link = libnet_open_link_interface(opt.ldev, error_buf)) == NULL)
-		die(EXIT_FAILURE, "libnet_open_link_interface failed: %s.",
-			error_buf);
+	opt.lnctx = libnet_init(LIBNET_LINK_ADV, opt.ldev, NULL);
 
 	signal(SIGINT, cleanup);
 	signal(SIGKILL, cleanup);
 
-	c = 0;
-	i = 0;
 	while (1)
 	{
 

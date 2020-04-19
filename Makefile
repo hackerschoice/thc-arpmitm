@@ -1,8 +1,8 @@
 CC=gcc
 CFLAGS=-Wall -O2 -static
 LIBS=-lm
-LIBNET_DEFS=`libnet-1.0-config --defines`
-LIBNET_LIBS=`libnet-1.0-config --libs`
+###LIBNET_DEFS=`libnet-config --defines`
+LIBNET_LIBS=`libnet-config --libs`
 
 all:
 
