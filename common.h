@@ -43,7 +43,6 @@
 	ptr = NULL; \
 } while (0)
 
-//#define int_ntoa(xip)	inet_ntoa(*((struct in_addr *)&(xip)))
 #define ntohll(xip) (((uint64_t)(ntohl((uint32_t)((xip << 32) >> 32))) << 32) | (uint32_t)ntohl(((uint32_t)(xip >> 32))))
 
 #endif /* COMMON_H_ */
