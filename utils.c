@@ -250,22 +250,20 @@ GetDefaultGW(struct in_addr *gw_addr, char *hwif)
 int
 GetMacFromArpTable(unsigned long ip, unsigned char *mac)
 {
-	FILE *fp;
 	char buf[1024];
+	int ret;
 
+
+#ifdef __linux__
+	snprintf(buf, sizeof buf, "arp -an %s", int_ntoa(ip));
+#else
 	snprintf(buf, sizeof buf, "arp -n %s", int_ntoa(ip));
-	fp = popen(buf, "r");
-	if (fp == NULL)
+#endif
+	ret = PopenGet(buf, buf, sizeof buf);
+	if (ret != 0)
 		return -1;
-	if (fgets(buf, sizeof buf, fp) == NULL)
-	{
-		fclose(fp);
-		return -1;
-	}
-	pclose(fp);
 
 	char macstr[1024];
-	int ret;
 	/*
 	 * arp -an output looks like this:
 	 * '? (10.0.2.2) at 52:54:00:12:35:02 [ether] on enp0s3'
