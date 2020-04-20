@@ -1,4 +1,21 @@
 #include "common.h"
+#include "utils.h"
+
+static int
+PopenGet(const char *cmd, char *res, size_t len)
+{
+	FILE *fp;
+	int ret = 0;
+
+	fp = popen(cmd, "r");
+	if (fp == NULL)
+		return -1;
+	if (fgets(res, len, fp) == NULL)
+		ret = -1;
+
+	pclose(fp);
+	return ret;
+}
 
 #ifdef __linux__
 #include <sys/ioctl.h>
@@ -6,7 +23,6 @@
 #include <linux/rtnetlink.h>
 #include <net/if.h>
 
-#include "utils.h"
 
 #define BUFFER_SIZE 4096
 
@@ -165,8 +181,71 @@ GetDefaultGW(struct in_addr *gw_addr, char *hwif)
 	return 0;
 }
 
+
+#elif TARGET_OS_MAC
+
+int
+GetMyMac(const char *hwif, unsigned char *mac)
+{
+	char buf[1024];
+	char res[1024];
+	char macstr[64];
+	int ret;
+
+	snprintf(buf, sizeof buf, "ifconfig %s | grep ether", hwif);
+	ret = PopenGet(buf, res, sizeof res);
+	if (ret != 0)
+		return -1;
+	
+	ret = sscanf(res, "%*s%64s", macstr);
+	if (ret != 1)
+		return -1;
+	ret = mac_aton(macstr, mac);
+	if (ret != 0)
+		return -1;
+
+	return 0;
+}
+
+int
+GetDefaultGW(struct in_addr *gw_addr, char *hwif)
+{
+	char buf[1024];
+	int ret;
+	char ipstr[128];
+
+	ret = PopenGet("netstat -rn | grep default", buf, sizeof buf);
+	if (ret != 0)
+		return -1;
+
+	/* 'default            192.168.1.1        UGSc           en0' */
+	ret = sscanf(buf, "%*s%128s%*s%64s", ipstr, hwif);
+	if (ret != 2)
+		return -1;
+
+	gw_addr->s_addr = inet_addr(ipstr);
+
+	return 0;
+}
+
+#else
+
+int
+GetMyMac(const char *hwif, unsigned char *mac)
+{
+	return -1;
+}
+
+int
+GetDefaultGW(struct in_addr *gw_addr, char *hwif)
+{
+	return -1;
+}
+#endif
+
 /*
  * Read trough arp table and find MAC address...
+ * Works for LINUX and MACOS
  */
 int
 GetMacFromArpTable(unsigned long ip, unsigned char *mac)
@@ -174,7 +253,7 @@ GetMacFromArpTable(unsigned long ip, unsigned char *mac)
 	FILE *fp;
 	char buf[1024];
 
-	snprintf(buf, sizeof buf, "arp -an %s", int_ntoa(ip));
+	snprintf(buf, sizeof buf, "arp -n %s", int_ntoa(ip));
 	fp = popen(buf, "r");
 	if (fp == NULL)
 		return -1;
@@ -183,7 +262,7 @@ GetMacFromArpTable(unsigned long ip, unsigned char *mac)
 		fclose(fp);
 		return -1;
 	}
-	fclose(fp);
+	pclose(fp);
 
 	char macstr[1024];
 	int ret;
@@ -201,27 +280,7 @@ GetMacFromArpTable(unsigned long ip, unsigned char *mac)
 	
 	return 0;
 }
-#else
 
-int
-GetMyMac(const char *hwif, unsigned char *mac)
-{
-	return -1;
-}
-
-int
-GetDefaultGW(struct in_addr *gw_addr, char *hwif, unsigned char *mac)
-{
-	return -1;
-}
-
-int
-GetMacFromArpTable(unsigned long ip, unsigned char *mac)
-{
-	return -1;
-}
-
-#endif
 
 #ifndef int_ntoa
 const char *

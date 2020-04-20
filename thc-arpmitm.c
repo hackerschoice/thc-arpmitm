@@ -107,7 +107,6 @@ init_argvlist(char *argv[])
 
         while (avl.argvlist[avl.len] != NULL)
                 avl.len++;
-	DEBUGF("ArgvList Length: %d\n", avl.len);
 
 	return (0);
 }
@@ -118,7 +117,6 @@ getnext_argvlist(struct _ipmac *ipmac)
 	if (avl.pos >= avl.len)
 		return(-1);
 
-	DEBUGF("avl.pos = %d\n", avl.pos);
 	str2ipmac(avl.argvlist[avl.pos++], ipmac);
 	return (0);
 }
@@ -568,6 +566,8 @@ main(int argc, char *argv[])
 		ret = GetDefaultGW(&opt.gw_addr, ldev);
 		if (ret != 0)
 			ERREXIT("Can't determine default GW\n");
+		DEBUGF("Default GW is: %s\n", inet_ntoa(opt.gw_addr));
+
 		ret = GetMyMac(ldev, opt.mymac);
 		if (ret != 0)
 			ERREXIT("Can't find out my own MAC\n");
@@ -598,7 +598,6 @@ main(int argc, char *argv[])
 		argz[0] = buf;
 		argz[1] = NULL;
 		snprintf(buf, sizeof buf, "%s:%s", int_ntoa(opt.victim_ip), mac2str(mac_victim));
-		argz[0] = "10.0.2.111:de:ad:be:ef:ef:ef";
 		opt.initipmac(argz);
 	}
 
