@@ -33,24 +33,13 @@
  * - configure your firewall (input, output, forward rules)
  */
 
-#include <sys/socket.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <unistd.h>
-#include <signal.h>
+#include "common.h"
 #include <math.h>
-#include <string.h>
 #include <time.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <libnet.h>
 
 //#define LINK_DEV	"eth0"
-#define MAXBUFSIZE	1024
-#define RECACHE_TIME	10
 #define OPT_ASYM	0x01
-#define OPT_FILE	0x02
 #define OPT_REVASYM	0x04
 #define OPT_MACOFF	0x08
 
@@ -408,7 +397,6 @@ do_opt(int argc, char *argv[])
 
 void cleanup(int ret)
 {
-	fprintf(stderr, "exiting...\n");
 	libnet_destroy(opt.lnctx);
 	exit(ret);
 }
@@ -427,12 +415,6 @@ die(int code, char *fmt, ...)
 	cleanup(code);
 }
 	
-void banner( void )
-{
-	if (opt.verb > 5)
-		printf("harharhar. PRETTY VERBOSE now you evil hacker!\n");
-}
-
 /*
  * get next ip in spread-mode
  * return NBO ip or -1 on error or when done
@@ -614,6 +596,10 @@ main(int argc, char *argv[])
 
 	init_vars();
 
+	/*
+	 * Allow passing of arguments by environment variable to hide
+	 * from process list.
+	 */
         if ((args = getenv (ENV_ARGS)))
         {
                 get_args_env (args, &argc, &argv);
@@ -623,8 +609,6 @@ main(int argc, char *argv[])
 	do_opt(argc, argv);
 	if (opt.initipmac == NULL)
 		usage(0, "not enough parameters");
-
-	banner(); 
 
 	opt.lnctx = libnet_init(LIBNET_LINK_ADV, opt.ldev, NULL);
 
@@ -660,7 +644,7 @@ main(int argc, char *argv[])
 		usleep(opt.pwait * 1000);
 	}
 
-	exit (EXIT_SUCCESS);
-	return (EXIT_SUCCESS);
+	exit(0);
+	return 0;
 }
 

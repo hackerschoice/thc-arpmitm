@@ -1,7 +1,24 @@
-#ifndef COMMON_H_
-#define COMMON_H_
+#ifndef THC_ARPMITM_COMMON_H_
+#define THC_ARPMITM_COMMON_H_
 
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <inttypes.h>
+#include <signal.h>
 
 #define WITH_DEBUG
 #ifdef WITH_DEBUG
