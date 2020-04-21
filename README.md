@@ -1,6 +1,8 @@
 # ARP Man-in-the-Middle
 
-A tool to redirect hosts on a local network to your own computer (to intercept the traffic - aka ARP poisoning).
+A tool to redirect hosts on a local network to your own computer (to intercept the traffic - aka ARP poisoning).  
+
+Direct Download: [https://github.com/hackerschoice/thc-arpmitm/releases](https://github.com/hackerschoice/thc-arpmitm/releases)
 
 **Install:**
 ```
