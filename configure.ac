@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.61)
-AC_INIT(thc-arpmitm, 2.2.0)
+AC_INIT(thc-arpmitm, 2.2.1)
 AC_CONFIG_AUX_DIR(config)
 AC_CANONICAL_SYSTEM
 
@@ -68,6 +68,15 @@ AC_ARG_ENABLE(dist,
 [  --enable-dist           Enable distribution mode, Use own libraries.],
 	[DIST="yes"], [DIST="no"]
 )
+
+AC_ARG_ENABLE(static,
+[  --enable-static          Compile static binary],
+	[STATIC="yes"], [STATIC="no"]
+)
+
+if test x"$STATIC" = x"yes"; then
+	CFLAGS="-static ${CFLAGS}"
+fi
 
 AC_OUTPUT(Makefile)
 
