@@ -10,16 +10,17 @@ $ ./configure --enable-static
 $ make all
 ```
 
-Make sure IP Forwarding is enabled:
+Setup:
 ```
-# echo 1 > /proc/sys/net/ipv4/ip_forward
+echo 1 >/proc/sys/net/ipv4/ip_forward
+echo 0 | tee /proc/sys/net/ipv4/conf/*/send_redirects
 ```
 
 **Example 1:**
 ```
-# ./thc-arpmitm -t 10.0.1.111.
+# ./thc-arpmitm -t 10.0.1.111
 ```
-The above redirects all traffic between 10.0.1.111 and the Internet through your computer.
+The above redirects all traffic between the target '10.0.1.111' and the Internet through your computer.
 
 **Example 2:**
 ```
