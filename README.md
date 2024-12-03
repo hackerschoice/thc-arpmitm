@@ -31,7 +31,7 @@ arpmim -v 00:02:13:37:73:50 10.0.1.254:11:11:22:22:33:33 10.0.1.111:44:44:55:55:
 
 **Example 2:**
 
-Tells the gateway (10.0.1.254) to redirect all traffic to .111 and .222 via us (00:02:13:37:73:50). Traffic from .111 and .222 traffic towards the gaterway is _not_ redirected (-A).
+Tell the gateway (10.0.1.254) to redirect all traffic destined for .111 and .222 via us (00:02:13:37:73:50). Traffic from .111/.222 towards the gaterway is _not_ redirected (-A).
 ```sh
 arpmim -v -A 00:02:13:37:73:50 10.0.1.254:11:11:22:22:33:33 10.0.1.111 10.0.1.222
 ```
