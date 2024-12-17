@@ -14,6 +14,7 @@ Setup:
 ```sh
 echo 1 >/proc/sys/net/ipv4/ip_forward
 echo 0 | tee /proc/sys/net/ipv4/conf/*/send_redirects
+iptables -t mangle -A PREROUTING -j TTL --ttl-inc 1
 iptables -L FORWARD -vn
 ```
 
